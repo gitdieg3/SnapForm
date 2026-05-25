@@ -47,7 +47,7 @@ export default function LandingView({ setCurrentView }) {
             </div>
           </div>
           <div className="flex items-center gap-4 text-sm font-medium">
-            <button onClick={() => setCurrentView('register')} className="hidden md:block hover:text-gray-600">Masuk</button>
+            <button onClick={() => setCurrentView('login')} className="hidden md:block hover:text-gray-600">Masuk</button>
             <button 
               onClick={() => setCurrentView('register')}
               className="bg-[#111111] text-white px-5 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center gap-2"
