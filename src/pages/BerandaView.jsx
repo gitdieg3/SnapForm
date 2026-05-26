@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, LayoutGrid, Search, CheckCircle2, LogOut, Check, Key, Calendar, Ticket, X, User, Phone, BookOpen, Building2, ShieldCheck } from 'lucide-react';
+import { ChevronRight, LayoutGrid, Search, CheckCircle2, LogOut, Check, Key, Calendar, Ticket, X, User, Phone, BookOpen, Building2, ShieldCheck, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
+
 
 export default function BerandaView({ setCurrentView, user }) {
   const [menuAktif, setMenuAktif] = useState('beranda');
@@ -12,6 +13,7 @@ export default function BerandaView({ setCurrentView, user }) {
   const [loadingKlaim, setLoadingKlaim] = useState(false);
   const [formAktif, setFormAktif] = useState(null);
   const [inputKodeValidasi, setInputKodeValidasi] = useState('');
+  const [inputBuktiNim, setInputBuktiNim] = useState('');
 
   // --- STATE PHOTOBOOTH ---
   const [loadingVoucher, setLoadingVoucher] = useState(false);
@@ -23,6 +25,10 @@ export default function BerandaView({ setCurrentView, user }) {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [loadingProfil, setLoadingProfil] = useState(false);
+
+  // --- STATE LEADERBOARD ---
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loadingLeader, setLoadingLeader] = useState(false);
 
   // STATE KAMPUS DROPDOWN
   const [kampusList, setKampusList] = useState([]);
@@ -97,26 +103,62 @@ export default function BerandaView({ setCurrentView, user }) {
 
     const { data: setting } = await supabase.from('platform_settings').select('is_active').eq('id', 'photobooth_status').maybeSingle();
     if (setting) setIsPhotoboothActive(setting.is_active);
+    // --- TARIK DATA TOP 5 HUNTER ---
+    setLoadingLeader(true);
+    const { data: leaderData } = await supabase
+      .from('profiles')
+      .select('nama_lengkap, total_poin')
+      .order('total_poin', { ascending: false })
+      .limit(5);
+    
+    if (leaderData) setLeaderboard(leaderData);
+    setLoadingLeader(false);
   };
 
-  const handleSimpanProfil = async (e) => {
+const handleSimpanProfil = async (e) => {
     e.preventDefault();
     setLoadingProfil(true);
 
-    const { error } = await supabase.from('profiles').update({
-      no_wa: formProfil.no_wa,
-      nim: formProfil.nim,
-      universitas: formProfil.universitas,
-      jurusan: formProfil.jurusan
-    }).eq('id', user.id);
+    // 1. Cek dulu, apakah Hunter ini udah punya "Dompet/Baris" di tabel profiles?
+    const { data: cekProfil } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle();
 
-    if (error) {
-      toast.error("Gagal menyimpan profil: " + error.message);
+    let errorSimpan;
+
+    if (cekProfil) {
+      // 2A. Kalau udah punya, kita UPDATE datanya
+      const { error } = await supabase.from('profiles').update({
+        no_wa: formProfil.no_wa,
+        nim: formProfil.nim,
+        universitas: formProfil.universitas,
+        jurusan: formProfil.jurusan
+      }).eq('id', user.id);
+      errorSimpan = error;
     } else {
-      toast.success("Profil berhasil diperbarui! Keamanan akun meningkat.");
+      // 2B. Kalau BELUM punya (Kasus akun baru seperti Rafif), kita INSERT (Bikin Baru)
+      const { error } = await supabase.from('profiles').insert({
+        id: user.id, // Kunci utama!
+        nama_lengkap: user?.user_metadata?.nama_lengkap || 'Hunter Baru',
+        total_poin: 0, // Modal awal dompet
+        no_wa: formProfil.no_wa,
+        nim: formProfil.nim,
+        universitas: formProfil.universitas,
+        jurusan: formProfil.jurusan
+      });
+      errorSimpan = error;
+    }
+
+    // 3. Evaluasi Hasilnya
+    if (errorSimpan) {
+      toast.error("Gagal menyimpan profil: " + errorSimpan.message);
+    } else {
+      toast.success("Profil berhasil diamankan! Sistem siap menampung poin.");
       setIsProfileComplete(true);
       setShowProfileModal(false);
-      fetchData(); // Refresh data supaya form eksklusif kampusnya langsung nongol
+      fetchData(); // Refresh layar
     }
     setLoadingProfil(false);
   };
@@ -131,23 +173,36 @@ export default function BerandaView({ setCurrentView, user }) {
       toast.error("Kodenya salah bro! Cek lagi di akhir Google Form.");
       return;
     }
+
+    // CEK APAKAH NIM UDAH DIISI
+    if (!inputBuktiNim) {
+      toast.error("Wajib isi NIM sebagai bukti pengerjaan!");
+      return;
+    }
+
     setLoadingKlaim(true);
 
+    // KIRIM BUKTI KE DATABASE (Status otomatis 'pending' dari Supabase)
     const { error: errorSub } = await supabase.from('submissions').insert({
-      campaign_id: campaign.id, hunter_id: user.id
+      campaign_id: campaign.id,
+      hunter_id: user.id,
+      bukti_nim: inputBuktiNim
     });
 
     if (errorSub) {
-      toast.error("Gagal klaim: " + errorSub.message);
-      setLoadingKlaim(false); return;
+      toast.error("Gagal mengirim bukti: " + errorSub.message);
+      setLoadingKlaim(false);
+      return;
     }
 
-    await supabase.from('profiles').update({ total_poin: poin + campaign.reward_poin }).eq('id', user.id);
-    const currentTerisi = campaign.terisi || 0;
-    await supabase.from('campaigns').update({ terisi: currentTerisi + 1 }).eq('id', campaign.id);
+    // Poin TIDAK ditambahkan di sini. Menunggu Klien!
 
-    toast.success(`Mantap! Kode Benar. Poin lu nambah +${campaign.reward_poin} 🚀`);
-    setFormAktif(null); setInputKodeValidasi(''); setLoadingKlaim(false); fetchData();
+    toast.success(`Kuesioner terkirim! Menunggu verifikasi dari Klien ⏳`);
+    setFormAktif(null);
+    setInputKodeValidasi('');
+    setInputBuktiNim(''); // Reset inputan
+    setLoadingKlaim(false);
+    fetchData();
   };
 
   const handleTukarPhotobooth = async () => {
@@ -168,6 +223,7 @@ export default function BerandaView({ setCurrentView, user }) {
 
     setLoadingVoucher(true);
 
+    // 1. Bikin kode tiket
     const karakter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let kodeAcak = '';
     for (let i = 0; i < 6; i++) {
@@ -175,24 +231,25 @@ export default function BerandaView({ setCurrentView, user }) {
     }
     const kodeFinal = `SNAP-${kodeAcak}`;
 
-    const sisaPoin = poin - 50;
-    const { error: errPoin } = await supabase.from('profiles').update({ total_poin: sisaPoin }).eq('id', user.id);
-
-    if (errPoin) {
-      toast.error("Waduh, gagal motong poin!");
-      setLoadingVoucher(false); return;
-    }
-
-    const { error: errVoucher } = await supabase.from('vouchers').insert({
-      hunter_id: user.id, kode_voucher: kodeFinal, status: 'aktif'
+    // 2. Suruh server yang potong poin dan simpan tiket
+    const { data: isBerhasil, error } = await supabase.rpc('tukar_tiket_photobooth', {
+      p_hunter_id: user.id,
+      p_kode_voucher: kodeFinal
     });
 
-    if (errVoucher) {
-      toast.error("Gagal bikin tiket!");
-      setLoadingVoucher(false); return;
+    if (error || !isBerhasil) {
+      toast.error("Gagal menukar tiket. Pastikan poinmu cukup!");
+      setLoadingVoucher(false);
+      return;
     }
 
-    setPoin(sisaPoin); setKodeVoucherAktif(kodeFinal); setShowModalVoucher(true); setLoadingVoucher(false);
+    // 3. Kalau server bilang sukses, baru ubah tampilan di layar
+    setPoin(poin - 50); 
+    setKodeVoucherAktif(kodeFinal); 
+    setShowModalVoucher(true); 
+    setLoadingVoucher(false);
+    
+    toast.success("Tiket Photobooth berhasil dicetak!");
   };
 
   const handleLogout = async () => {
@@ -268,6 +325,8 @@ export default function BerandaView({ setCurrentView, user }) {
                 <span className="text-xs font-bold text-amber-400">{poin} / 50 Poin</span>
               </div>
 
+              
+
               {!isPhotoboothActive ? (
                 <button disabled className="w-full py-3 rounded-xl bg-gray-800 text-gray-400 font-bold text-sm cursor-not-allowed border border-gray-700">
                   Mesin Sedang Perbaikan 🛠️
@@ -286,6 +345,40 @@ export default function BerandaView({ setCurrentView, user }) {
                 </button>
               )}
             </div>
+
+            {/* --- UI WIDGET: MINI LEADERBOARD --- */}
+            <div className="mt-6 p-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <Crown className="w-5 h-5 text-amber-500" />
+                <h4 className="font-bold text-sm">Top 5 Hunters</h4>
+              </div>
+              
+              {loadingLeader ? (
+                <p className="text-xs text-center text-gray-400">Memuat radar...</p>
+              ) : leaderboard.length === 0 ? (
+                <p className="text-xs text-center text-gray-400">Belum ada data.</p>
+              ) : (
+                <div className="space-y-3">
+                  {leaderboard.map((hunter, index) => (
+                    <div key={index} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 hover:border-amber-200 transition-colors">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        {/* Lingkaran Peringkat */}
+                        <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold shrink-0 ${index === 0 ? 'bg-amber-100 text-amber-600 border border-amber-200' : index === 1 ? 'bg-gray-200 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-white text-gray-500 border border-gray-200'}`}>
+                          {index + 1}
+                        </span>
+                        {/* Nama Hunter */}
+                        <span className="text-xs font-bold text-gray-700 truncate max-w-[100px]" title={hunter.nama_lengkap || 'Anonymous'}>
+                          {hunter.nama_lengkap || 'Anon'}
+                        </span>
+                      </div>
+                      {/* Skor */}
+                      <span className="text-xs font-black text-amber-500 shrink-0">{hunter.total_poin || 0} Pts</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* --- END UI WIDGET --- */}
           </div>
         </div>
 
@@ -333,6 +426,16 @@ export default function BerandaView({ setCurrentView, user }) {
                               <div className="relative">
                                 <Key className="absolute top-2.5 left-3 text-amber-500 w-4 h-4 shrink-0" />
                                 <input type="text" value={inputKodeValidasi} onChange={(e) => setInputKodeValidasi(e.target.value)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-amber-200 outline-none focus:border-amber-500 text-sm" placeholder="Ketik kode di sini..." />
+                              </div>
+                              <div className="relative mt-3">
+                                <User className="absolute top-2.5 left-3 text-amber-500 w-4 h-4 shrink-0" />
+                                <input
+                                  type="text"
+                                  value={inputBuktiNim}
+                                  onChange={(e) => setInputBuktiNim(e.target.value)}
+                                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-amber-200 outline-none focus:border-amber-500 text-sm"
+                                  placeholder="Ketik NIM kamu sebagai bukti..."
+                                />
                               </div>
                               <button onClick={() => handleKlaimPoin(item)} disabled={loadingKlaim || !inputKodeValidasi} className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition-colors flex justify-center items-center gap-2 shadow-md shadow-amber-200 disabled:opacity-50">
                                 {loadingKlaim ? 'Memproses...' : <><Check className="w-5 h-5 shrink-0" /> Klaim {item.reward_poin} Poin Saya</>}

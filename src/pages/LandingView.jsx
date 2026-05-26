@@ -1,7 +1,29 @@
-import React from 'react';
-import { ArrowRight, PlayCircle, List, Coins, Camera } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, PlayCircle, List, Coins, Camera, Crown, Trophy, Medal } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 export default function LandingView({ setCurrentView }) {
+  //STATE & EFFECT 
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loadingLeader, setLoadingLeader] = useState(true);
+
+  useEffect(() => {
+    fetchTopHunters();
+  }, []);
+
+  const fetchTopHunters = async () => {
+    setLoadingLeader(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('nama_lengkap, total_poin')
+      .order('total_poin', { ascending: false })
+      .limit(5);
+
+    if (!error && data) {
+      setLeaderboard(data);
+    }
+    setLoadingLeader(false);
+  };
   // Fungsi Smooth Scroll (Racikan Mesin)
   const scrollToSection = (id) => {
     const element = document.getElementById(id);
@@ -122,6 +144,78 @@ export default function LandingView({ setCurrentView }) {
           </div>
         </div>
       </section>
+      {/* --- SECTION BARU: LIVE LEADERBOARD (FOMO MAKER) --- */}
+      <section className="w-full bg-white py-20 border-t border-gray-100">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-bold uppercase tracking-wider mb-3">
+              <Crown size={14} className="text-amber-500 animate-bounce" /> Live Arena
+            </span>
+            <h3 className="text-3xl md:text-4xl font-bold mb-3">Top 5 Hunter Ter-Gacor</h3>
+            <p className="text-gray-500 text-sm max-w-md mx-auto">
+              Daftar jawara pengumpul poin SnapForm minggu ini. Makin aktif ngisi, makin cepat masuk bilik foto!
+            </p>
+          </div>
+
+          <div className="bg-[#111111] text-white rounded-[2rem] p-6 md:p-8 shadow-xl shadow-black/10 relative overflow-hidden">
+            {/* Dekorasi latar belakang tipis */}
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl"></div>
+
+            {loadingLeader ? (
+              <p className="text-center text-sm text-gray-400 py-6">Memetakan peringkat teratas...</p>
+            ) : leaderboard.length === 0 ? (
+              <p className="text-center text-sm text-gray-500 py-6 italic">Belum ada kompetisi dimulai.</p>
+            ) : (
+              <div className="space-y-3.5">
+                {leaderboard.map((hunter, index) => {
+                  // Cek medali berdasarkan peringkat
+                  const isTop1 = index === 0;
+                  const isTop2 = index === 1;
+                  const isTop3 = index === 2;
+
+                  return (
+                    <div 
+                      key={index} 
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                        isTop1 
+                          ? 'bg-gradient-to-r from-amber-500/20 to-transparent border-amber-500/30 shadow-md' 
+                          : 'bg-gray-900/40 border-gray-850/50 hover:bg-gray-900/80 border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        {/* Angka / Icon Peringkat */}
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0">
+                          {isTop1 && <Crown className="text-amber-400 w-6 h-6 animate-pulse" />}
+                          {isTop2 && <Trophy className="text-gray-300 w-5 h-5" />}
+                          {isTop3 && <Medal className="text-amber-750 w-5 h-5" />}
+                          {!isTop1 && !isTop2 && !isTop3 && <span className="text-gray-500 font-mono">#{index + 1}</span>}
+                        </div>
+
+                        {/* Nama Profil */}
+                        <div>
+                          <p className={`font-bold text-sm md:text-base ${isTop1 ? 'text-amber-400' : 'text-gray-200'}`}>
+                            {hunter.nama_lengkap || 'Anonymous Hunter'}
+                          </p>
+                          <p className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Verified Profile</p>
+                        </div>
+                      </div>
+
+                      {/* Skor Poin */}
+                      <div className="text-right">
+                        <span className={`font-mono font-black text-base md:text-lg ${isTop1 ? 'text-amber-400' : 'text-amber-500'}`}>
+                          {hunter.total_poin || 0}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-bold ml-1 uppercase">Pts</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+      {/* --- END SECTION LIVE LEADERBOARD
 
       {/* CARA KERJA (Video & Penjelasan) */}
       <section id="cara-kerja" className="py-24 bg-white border-t border-gray-100">
