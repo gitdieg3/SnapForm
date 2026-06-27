@@ -14,35 +14,31 @@ export default function BerandaView({ setCurrentView, user }) {
   const [inputKodeValidasi, setInputKodeValidasi] = useState('');
   const [inputBuktiNim, setInputBuktiNim] = useState('');
 
-  // --- STATE PHOTOBOOTH ---
   const [loadingVoucher, setLoadingVoucher] = useState(false);
   const [showModalVoucher, setShowModalVoucher] = useState(false);
   const [kodeVoucherAktif, setKodeVoucherAktif] = useState('');
   const [isPhotoboothActive, setIsPhotoboothActive] = useState(true);
 
-  // --- STATE PROFIL & KYC (KNOW YOUR CUSTOMER) ---
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [loadingProfil, setLoadingProfil] = useState(false);
 
-  // --- STATE LEADERBOARD ---
   const [leaderboard, setLeaderboard] = useState([]);
   const [loadingLeader, setLoadingLeader] = useState(false);
 
-  // STATE KAMPUS DROPDOWN
   const [kampusList, setKampusList] = useState([]);
   const [formProfil, setFormProfil] = useState({
     no_wa: '', nim: '', universitas: '', jurusan: ''
   });
   
-  // STATE SISTEM
+  // ✅ DITAMBAHKAN poin_to_rupiah DEFAULT 50
   const [systemSettings, setSystemSettings] = useState({
     is_photobooth_active: false,
     is_cash_active: true,
-    min_cash_withdrawal: 10000
+    min_cash_withdrawal: 10000,
+    poin_to_rupiah: 50 
   });
 
-  // --- STATE PENCAIRAN UANG (SNAPCASH) ---
   const [showModalCash, setShowModalCash] = useState(false);
   const [loadingTarik, setLoadingTarik] = useState(false);
   const [formCash, setFormCash] = useState({
@@ -50,7 +46,6 @@ export default function BerandaView({ setCurrentView, user }) {
     nomor: ''
   });
 
-  // --- STATE NOTIFIKASI ---
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -72,9 +67,6 @@ export default function BerandaView({ setCurrentView, user }) {
     if (data) setSystemSettings(data);
   };
 
-  // ==========================================
-  // FUNGSI NOTIFIKASI (SUDAH DI LUAR FETCHDATA)
-  // ==========================================
   const fetchNotifications = async () => {
     const { data, error } = await supabase
       .from('notifications')
@@ -109,14 +101,11 @@ export default function BerandaView({ setCurrentView, user }) {
       setUnreadCount(0); 
     }
   };
-  // ==========================================
 
   const fetchData = async () => {
-    // Tarik daftar kampus dari Admin
     const { data: kmp } = await supabase.from('master_kampus').select('*').order('nama_kampus');
     if (kmp) setKampusList(kmp);
 
-    // 1. Tarik data profil dan cek kelengkapan data
     let userKampus = '';
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
 
@@ -141,12 +130,10 @@ export default function BerandaView({ setCurrentView, user }) {
     const { data: allCampaigns } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
 
     if (allCampaigns) {
-      // 2. LOGIKA RADAR EKSKLUSIF (Filter Target Kampus)
       const kuesionerTersedia = allCampaigns.filter(c => {
         const belumDikerjakan = !kuesionerSelesai.includes(c.id);
         const belumPenuh = (c.terisi || 0) < c.target_responden;
 
-        // Fungsi bantu buat ngebersihin spasi dan jadiin huruf kecil semua
         const bersihkanString = (str) => str ? str.toString().toLowerCase().replace(/\s+/g, '') : '';
 
         const targetKampus = bersihkanString(c.target_universitas || 'Semua Kampus');
@@ -172,7 +159,6 @@ export default function BerandaView({ setCurrentView, user }) {
     const { data: setting } = await supabase.from('platform_settings').select('is_active').eq('id', 'photobooth_status').maybeSingle();
     if (setting) setIsPhotoboothActive(setting.is_active);
     
-    // --- TARIK DATA TOP 5 HUNTER ---
     setLoadingLeader(true);
     const { data: leaderData } = await supabase
       .from('profiles')
@@ -188,9 +174,6 @@ export default function BerandaView({ setCurrentView, user }) {
     e.preventDefault();
     setLoadingProfil(true);
 
-    // ==========================================
-    // 🛡️ SATPAM ANTI-TUYUL (CEK DUPLIKAT NIM)
-    // ==========================================
     const { data: cekNimBentro } = await supabase
       .from('profiles')
       .select('id')
@@ -203,7 +186,6 @@ export default function BerandaView({ setCurrentView, user }) {
       setLoadingProfil(false);
       return; 
     }
-    // ==========================================
 
     const { data: cekProfil } = await supabase
       .from('profiles')
@@ -334,7 +316,9 @@ export default function BerandaView({ setCurrentView, user }) {
   const handleTarikTunai = async (e) => {
     e.preventDefault();
 
-    const nominalRupiah = poin * 50;
+    // ✅ RUMUS DIUBAH AGAR DINAMIS
+    const nilaiKonversi = systemSettings.poin_to_rupiah || 50;
+    const nominalRupiah = poin * nilaiKonversi;
 
     if (nominalRupiah < systemSettings.min_cash_withdrawal) {
       toast.error(`Saldo belum mencapai Rp ${systemSettings.min_cash_withdrawal.toLocaleString('id-ID')}`);
@@ -380,7 +364,6 @@ export default function BerandaView({ setCurrentView, user }) {
     setLoadingTarik(false);
   };
 
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setCurrentView('landing');
@@ -401,20 +384,17 @@ export default function BerandaView({ setCurrentView, user }) {
               {poin} Poin
             </div>
 
-            {/* WIDGET NOTIFIKASI */}
             <div className="relative">
               <button
                 onClick={handleOpenNotif}
                 className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors relative"
               >
                 <Bell size={24} />
-                {/* Titik Merah Indikator Pesan Baru */}
                 {unreadCount > 0 && (
                   <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></span>
                 )}
               </button>
 
-              {/* DROPDOWN ISI NOTIFIKASI */}
               {showNotifDropdown && (
                 <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
                   <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
@@ -440,14 +420,12 @@ export default function BerandaView({ setCurrentView, user }) {
               )}
             </div>
 
-            {/* FOTO PROFIL BISA DIKLIK BUAT BUKA MODAL */}
             <div
               onClick={() => setShowProfileModal(true)}
               className="w-9 h-9 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-sm uppercase cursor-pointer hover:bg-amber-500 hover:text-black transition-colors relative"
               title="Lengkapi Profil Anda"
             >
               {namaHunter.charAt(0)}
-              {/* Notif Titik Merah Kalau Profil Belum Lengkap */}
               {!isProfileComplete && (
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>
               )}
@@ -470,10 +448,7 @@ export default function BerandaView({ setCurrentView, user }) {
               <CheckCircle2 className="w-5 h-5 shrink-0" /> Riwayat Saya
             </button>
 
-            {/* WIDGET REWARD DINAMIS (GABUNGAN PHOTOBOOTH & CASH) */}
             <div className="mt-8 p-5 bg-[#111111] rounded-2xl text-white shadow-lg relative overflow-hidden">
-
-              {/* Layer Terkunci Jika Profil Belum Lengkap */}
               {!isProfileComplete && (
                 <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
                   <ShieldCheck className="w-8 h-8 text-amber-400 mb-2" />
@@ -482,7 +457,6 @@ export default function BerandaView({ setCurrentView, user }) {
                 </div>
               )}
 
-              {/* SKENARIO 1: JIKA DOMPET CASH AKTIF */}
               {systemSettings.is_cash_active && (
                 <div className={`pb-4 ${systemSettings.is_photobooth_active ? 'border-b border-gray-800 mb-5' : ''}`}>
                   <div className="flex items-center gap-2 mb-2">
@@ -495,27 +469,26 @@ export default function BerandaView({ setCurrentView, user }) {
                     <div>
                       <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Saldo Rupiah</p>
                       <p className="text-2xl font-black text-green-400">
-                        Rp {((poin || 0) * 50).toLocaleString('id-ID')}
+                        {/* ✅ RUMUS DIUBAH MENGGUNAKAN VARIABEL DINAMIS */}
+                        Rp {((poin || 0) * (systemSettings.poin_to_rupiah || 50)).toLocaleString('id-ID')}
                       </p>
                     </div>
                     <p className="text-sm font-bold text-amber-400">{poin || 0} Pts</p>
                   </div>
-
 
                   <button
                     onClick={() => {
                       setFormCash({ ...formCash, nomor: formProfil.no_wa });
                       setShowModalCash(true);
                     }}
-                    disabled={((poin || 0) * 50) < systemSettings.min_cash_withdrawal}
+                    disabled={((poin || 0) * (systemSettings.poin_to_rupiah || 50)) < systemSettings.min_cash_withdrawal}
                     className="w-full py-3 rounded-xl bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition-colors disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed"
                   >
-                    {((poin || 0) * 50) < systemSettings.min_cash_withdrawal ? 'Saldo Belum Mencukupi' : 'Tarik Uang Tunai'}
+                    {((poin || 0) * (systemSettings.poin_to_rupiah || 50)) < systemSettings.min_cash_withdrawal ? 'Saldo Belum Mencukupi' : 'Tarik Uang Tunai'}
                   </button>
                 </div>
               )}
 
-              {/* SKENARIO 2: JIKA PHOTOBOOTH AKTIF */}
               {systemSettings.is_photobooth_active && (
                 <div className={systemSettings.is_cash_active ? 'pt-2' : ''}>
                   <div className="flex items-center gap-2 mb-2">
@@ -543,7 +516,6 @@ export default function BerandaView({ setCurrentView, user }) {
                 </div>
               )}
 
-              {/* SKENARIO 3: JIKA KEDUANYA MATI (SISTEM BEKU) */}
               {!systemSettings.is_cash_active && !systemSettings.is_photobooth_active && (
                 <div className="text-center py-8">
                   <ShieldCheck className="w-10 h-10 text-gray-600 mx-auto mb-3" />
@@ -552,7 +524,6 @@ export default function BerandaView({ setCurrentView, user }) {
               )}
             </div>
 
-            {/* --- UI WIDGET: MINI LEADERBOARD --- */}
             <div className="mt-6 p-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <Crown className="w-5 h-5 text-amber-500" />
@@ -568,23 +539,19 @@ export default function BerandaView({ setCurrentView, user }) {
                   {leaderboard.map((hunter, index) => (
                     <div key={index} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 hover:border-amber-200 transition-colors">
                       <div className="flex items-center gap-2.5 overflow-hidden">
-                        {/* Lingkaran Peringkat */}
                         <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold shrink-0 ${index === 0 ? 'bg-amber-100 text-amber-600 border border-amber-200' : index === 1 ? 'bg-gray-200 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-white text-gray-500 border border-gray-200'}`}>
                           {index + 1}
                         </span>
-                        {/* Nama Hunter */}
                         <span className="text-xs font-bold text-gray-700 truncate max-w-[100px]" title={hunter.nama_lengkap || 'Anonymous'}>
                           {hunter.nama_lengkap || 'Anon'}
                         </span>
                       </div>
-                      {/* Skor */}
                       <span className="text-xs font-black text-amber-500 shrink-0">{hunter.total_poin || 0} Pts</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            {/* --- END UI WIDGET --- */}
           </div>
         </div>
 
@@ -617,7 +584,6 @@ export default function BerandaView({ setCurrentView, user }) {
                       <div key={item.id} className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-gray-100 flex flex-col hover:border-amber-200 transition-colors">
                         <div className="flex flex-col gap-3 mb-4">
                           <div className="flex justify-between items-start">
-                            {/* LABEL TARGET KAMPUS (TRANSPARANSI DATA) */}
                             <span className={`text-[10px] font-bold px-2.5 py-1.5 rounded-md flex items-center gap-1 w-fit ${item.target_universitas && item.target_universitas !== 'Semua Kampus' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-gray-50 text-gray-500 border border-gray-200'}`}>
                               <Building2 size={12} /> {item.target_universitas || 'Semua Kampus'}
                             </span>
@@ -688,7 +654,6 @@ export default function BerandaView({ setCurrentView, user }) {
                         </span>
                       )}
 
-                      {/* Kalau ditolak, angka poinnya dicoret biar tegas */}
                       <span className={`text-sm font-bold ${item.status === 'rejected' ? 'text-gray-300 line-through' : 'text-amber-500'}`}>
                         +{item.campaigns?.reward_poin} Poin
                       </span>
@@ -705,7 +670,6 @@ export default function BerandaView({ setCurrentView, user }) {
         </div>
       </main>
 
-      {/* --- POP-UP MODAL PROFIL & KYC (DENGAN DROPDOWN KAMPUS) --- */}
       {showProfileModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] w-full max-w-md p-8 relative flex flex-col shadow-2xl animate-in zoom-in-95 duration-300">
@@ -740,7 +704,6 @@ export default function BerandaView({ setCurrentView, user }) {
                 </div>
               </div>
 
-              {/* DROPDOWN KAMPUS ESTETIK */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">Universitas Resmi <span className="text-red-500">*</span></label>
                 <div className="relative">
@@ -775,7 +738,6 @@ export default function BerandaView({ setCurrentView, user }) {
         </div>
       )}
 
-      {/* --- POP-UP MODAL TIKET DIGITAL --- */}
       {showModalVoucher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative flex flex-col items-center text-center shadow-2xl animate-in zoom-in-95 duration-300">
@@ -808,7 +770,6 @@ export default function BerandaView({ setCurrentView, user }) {
         </div>
       )}
 
-      {/* --- POP-UP MODAL PENCAIRAN UANG (SNAPCASH) --- */}
       {showModalCash && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] w-full max-w-md p-8 relative flex flex-col shadow-2xl animate-in zoom-in-95 duration-300">
@@ -822,7 +783,8 @@ export default function BerandaView({ setCurrentView, user }) {
               </div>
               <div>
                 <h2 className="text-xl font-bold">Cairkan Uang Jajan</h2>
-                <p className="text-xs text-gray-500">Saldo saat ini: <strong className="text-green-600">Rp {(poin * 50).toLocaleString('id-ID')}</strong></p>
+                {/* ✅ UI MODAL JUGA DIUBAH PAKE KONVERSI DINAMIS */}
+                <p className="text-xs text-gray-500">Saldo saat ini: <strong className="text-green-600">Rp {(poin * (systemSettings.poin_to_rupiah || 50)).toLocaleString('id-ID')}</strong></p>
               </div>
             </div>
 
@@ -867,7 +829,6 @@ export default function BerandaView({ setCurrentView, user }) {
           </div>
         </div>
       )}
-
     </div>
   );
 }
