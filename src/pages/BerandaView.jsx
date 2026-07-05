@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, LayoutGrid, Search, CheckCircle2, LogOut, Check, Key, Calendar, Ticket, X, User, Phone, BookOpen, Building2, ShieldCheck, Crown, Clock, XCircle, Bell } from 'lucide-react';
+import { ChevronRight, LayoutGrid, Search, CheckCircle2, LogOut, Check, Key, Calendar, Ticket, X, User, Phone, BookOpen, Building2, ShieldCheck, Crown, Clock, XCircle, Bell, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
@@ -49,6 +49,9 @@ export default function BerandaView({ setCurrentView, user }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  
+  // State khusus UI untuk Mobile Hamburger Menu
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const namaHunter = user?.user_metadata?.nama_lengkap || 'Hunter';
 
@@ -316,7 +319,6 @@ export default function BerandaView({ setCurrentView, user }) {
   const handleTarikTunai = async (e) => {
     e.preventDefault();
 
-    // ✅ RUMUS DIUBAH AGAR DINAMIS
     const nilaiKonversi = systemSettings.poin_to_rupiah || 50;
     const nominalRupiah = poin * nilaiKonversi;
 
@@ -375,12 +377,21 @@ export default function BerandaView({ setCurrentView, user }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFCF8] font-sans text-[#111111] flex flex-col relative">
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <h1 className="text-xl font-bold font-serif cursor-pointer" onClick={() => setCurrentView('landing')}>SnapForm.</h1>
-          <div className="flex items-center gap-6">
-            <div className="bg-amber-100 text-amber-800 px-4 py-1.5 rounded-full font-bold text-sm shadow-sm border border-amber-200">
+    <div className="min-h-screen bg-[#FDFCF8] font-sans text-[#111111] flex flex-col relative overflow-x-hidden">
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <Menu size={24} />
+            </button>
+            <h1 className="text-xl font-bold font-serif cursor-pointer" onClick={() => setCurrentView('landing')}>SnapForm.</h1>
+          </div>
+          
+          <div className="flex items-center gap-3 md:gap-6">
+            <div className="hidden md:flex bg-amber-100 text-amber-800 px-4 py-1.5 rounded-full font-bold text-sm shadow-sm border border-amber-200">
               {poin} Poin
             </div>
 
@@ -396,7 +407,7 @@ export default function BerandaView({ setCurrentView, user }) {
               </button>
 
               {showNotifDropdown && (
-                <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
+                <div className="absolute right-0 md:-right-4 mt-3 w-[300px] md:w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
                   <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                     <h3 className="font-bold text-gray-800">Notifikasi</h3>
                   </div>
@@ -431,136 +442,173 @@ export default function BerandaView({ setCurrentView, user }) {
               )}
             </div>
 
-            <button onClick={handleLogout} className="text-gray-500 hover:text-red-600 transition-colors">
+            <button onClick={handleLogout} className="text-gray-500 hover:text-red-600 transition-colors hidden md:block">
               <LogOut className="w-5 h-5 shrink-0" />
             </button>
           </div>
         </div>
       </nav>
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8 flex gap-8">
-        <div className="w-64 hidden md:block">
-          <div className="sticky top-24 space-y-2">
-            <button onClick={() => setMenuAktif('beranda')} className={`w-full flex items-center gap-3 px-4 py-3 font-semibold rounded-xl transition-colors ${menuAktif === 'beranda' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:bg-gray-50'}`}>
-              <LayoutGrid className="w-5 h-5 shrink-0" /> Beranda
-            </button>
-            <button onClick={() => setMenuAktif('riwayat')} className={`w-full flex items-center gap-3 px-4 py-3 font-semibold rounded-xl transition-colors ${menuAktif === 'riwayat' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:bg-gray-50'}`}>
-              <CheckCircle2 className="w-5 h-5 shrink-0" /> Riwayat Saya
-            </button>
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 md:px-6 py-6 md:py-8 flex flex-col md:flex-row gap-6 md:gap-8 relative">
+        
+        {/* Overlay Background Mobile */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm" 
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
 
-            <div className="mt-8 p-5 bg-[#111111] rounded-2xl text-white shadow-lg relative overflow-hidden">
-              {!isProfileComplete && (
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
-                  <ShieldCheck className="w-8 h-8 text-amber-400 mb-2" />
-                  <p className="text-xs font-bold mb-3">Lengkapi profil untuk mengaktifkan fitur hadiah.</p>
-                  <button onClick={() => setShowProfileModal(true)} className="text-[10px] bg-amber-500 text-black px-4 py-2 rounded-lg font-bold hover:bg-amber-400">Lengkapi Sekarang</button>
-                </div>
-              )}
-
-              {systemSettings.is_cash_active && (
-                <div className={`pb-4 ${systemSettings.is_photobooth_active ? 'border-b border-gray-800 mb-5' : ''}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">💰</span>
-                    <h4 className="font-bold text-white">Dompet SnapCash</h4>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-4 leading-relaxed">Tarik tunai uang jajan minimal Rp {systemSettings.min_cash_withdrawal.toLocaleString('id-ID')}.</p>
-
-                  <div className="flex justify-between items-end mb-4 bg-gray-800/50 p-3 rounded-xl border border-gray-700">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Saldo Rupiah</p>
-                      <p className="text-2xl font-black text-green-400">
-                        {/* ✅ RUMUS DIUBAH MENGGUNAKAN VARIABEL DINAMIS */}
-                        Rp {((poin || 0) * (systemSettings.poin_to_rupiah || 50)).toLocaleString('id-ID')}
-                      </p>
-                    </div>
-                    <p className="text-sm font-bold text-amber-400">{poin || 0} Pts</p>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setFormCash({ ...formCash, nomor: formProfil.no_wa });
-                      setShowModalCash(true);
-                    }}
-                    disabled={((poin || 0) * (systemSettings.poin_to_rupiah || 50)) < systemSettings.min_cash_withdrawal}
-                    className="w-full py-3 rounded-xl bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition-colors disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed"
-                  >
-                    {((poin || 0) * (systemSettings.poin_to_rupiah || 50)) < systemSettings.min_cash_withdrawal ? 'Saldo Belum Mencukupi' : 'Tarik Uang Tunai'}
-                  </button>
-                </div>
-              )}
-
-              {systemSettings.is_photobooth_active && (
-                <div className={systemSettings.is_cash_active ? 'pt-2' : ''}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Ticket className="w-5 h-5 text-amber-400" />
-                    <h4 className="font-bold text-white">Akses Photobooth</h4>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-4 leading-relaxed">Tukarkan 50 poin dengan 1 tiket sesi foto gratis.</p>
-
-                  <div className="w-full bg-gray-800 h-2.5 rounded-full mb-3 overflow-hidden">
-                    <div className="bg-amber-400 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${Math.min((poin / 50) * 100, 100)}%` }}></div>
-                  </div>
-
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
-                    <span className="text-xs font-bold text-amber-400">{poin} / 50 Poin</span>
-                  </div>
-
-                  <button
-                    onClick={handleTukarPhotobooth}
-                    disabled={loadingVoucher || poin < 50}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-black font-bold text-sm hover:from-amber-300 hover:to-amber-400 shadow-md shadow-amber-500/20 transition-all disabled:from-gray-800 disabled:to-gray-800 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed"
-                  >
-                    {loadingVoucher ? 'Memproses...' : poin < 50 ? 'Poin Belum Cukup' : 'Tukar 50 Poin'}
-                  </button>
-                </div>
-              )}
-
-              {!systemSettings.is_cash_active && !systemSettings.is_photobooth_active && (
-                <div className="text-center py-8">
-                  <ShieldCheck className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-                  <p className="text-gray-400 text-sm font-semibold">Sistem penukaran hadiah sedang dibekukan / dalam perbaikan.</p>
-                </div>
-              )}
+        {/* Sidebar Container (Responsive Drawer) */}
+        <div className={`fixed inset-y-0 left-0 z-50 w-[280px] bg-white md:bg-transparent shadow-2xl md:shadow-none transform transition-transform duration-300 ease-in-out md:relative md:z-auto md:w-64 flex flex-col h-full shrink-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+          <div className="p-6 md:p-0 overflow-y-auto h-full md:overflow-visible no-scrollbar">
+            
+            {/* Header Mobile Drawer */}
+            <div className="flex md:hidden justify-between items-center mb-6">
+               <h2 className="font-bold text-xl font-serif">Menu</h2>
+               <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors">
+                 <X size={20} />
+               </button>
             </div>
-
-            <div className="mt-6 p-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <Crown className="w-5 h-5 text-amber-500" />
-                <h4 className="font-bold text-sm">Top 5 Hunters</h4>
+            
+            {/* Navigasi & Info Sidebar */}
+            <div className="md:sticky md:top-24 space-y-2 pb-20 md:pb-0">
+              <div className="md:hidden flex items-center justify-between bg-amber-50 border border-amber-100 p-4 rounded-xl mb-6">
+                 <span className="text-sm font-bold text-amber-800">Total Poin Kamu</span>
+                 <span className="text-lg font-black text-amber-600">{poin}</span>
               </div>
 
-              {loadingLeader ? (
-                <p className="text-xs text-center text-gray-400">Memuat radar...</p>
-              ) : leaderboard.length === 0 ? (
-                <p className="text-xs text-center text-gray-400">Belum ada data.</p>
-              ) : (
-                <div className="space-y-3">
-                  {leaderboard.map((hunter, index) => (
-                    <div key={index} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 hover:border-amber-200 transition-colors">
-                      <div className="flex items-center gap-2.5 overflow-hidden">
-                        <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold shrink-0 ${index === 0 ? 'bg-amber-100 text-amber-600 border border-amber-200' : index === 1 ? 'bg-gray-200 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-white text-gray-500 border border-gray-200'}`}>
-                          {index + 1}
-                        </span>
-                        <span className="text-xs font-bold text-gray-700 truncate max-w-[100px]" title={hunter.nama_lengkap || 'Anonymous'}>
-                          {hunter.nama_lengkap || 'Anon'}
-                        </span>
-                      </div>
-                      <span className="text-xs font-black text-amber-500 shrink-0">{hunter.total_poin || 0} Pts</span>
+              <button onClick={() => { setMenuAktif('beranda'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 font-semibold rounded-xl transition-colors ${menuAktif === 'beranda' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <LayoutGrid className="w-5 h-5 shrink-0" /> Beranda
+              </button>
+              <button onClick={() => { setMenuAktif('riwayat'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 font-semibold rounded-xl transition-colors ${menuAktif === 'riwayat' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <CheckCircle2 className="w-5 h-5 shrink-0" /> Riwayat Saya
+              </button>
+
+              <div className="mt-8 p-5 bg-[#111111] rounded-2xl text-white shadow-lg relative overflow-hidden">
+                {!isProfileComplete && (
+                  <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4 text-center">
+                    <ShieldCheck className="w-8 h-8 text-amber-400 mb-2" />
+                    <p className="text-xs font-bold mb-3">Lengkapi profil untuk mengaktifkan fitur hadiah.</p>
+                    <button onClick={() => { setShowProfileModal(true); setIsMobileMenuOpen(false); }} className="text-[10px] bg-amber-500 text-black px-4 py-2 rounded-lg font-bold hover:bg-amber-400">Lengkapi Sekarang</button>
+                  </div>
+                )}
+
+                {systemSettings.is_cash_active && (
+                  <div className={`pb-4 ${systemSettings.is_photobooth_active ? 'border-b border-gray-800 mb-5' : ''}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">💰</span>
+                      <h4 className="font-bold text-white">Dompet SnapCash</h4>
                     </div>
-                  ))}
+                    <p className="text-xs text-gray-400 mb-4 leading-relaxed">Tarik tunai uang jajan minimal Rp {systemSettings.min_cash_withdrawal.toLocaleString('id-ID')}.</p>
+
+                    <div className="flex justify-between items-end mb-4 bg-gray-800/50 p-3 rounded-xl border border-gray-700">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Saldo Rupiah</p>
+                        <p className="text-xl md:text-2xl font-black text-green-400 truncate">
+                          Rp {((poin || 0) * (systemSettings.poin_to_rupiah || 50)).toLocaleString('id-ID')}
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-amber-400 ml-2">{poin || 0} Pts</p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setFormCash({ ...formCash, nomor: formProfil.no_wa });
+                        setShowModalCash(true);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      disabled={((poin || 0) * (systemSettings.poin_to_rupiah || 50)) < systemSettings.min_cash_withdrawal}
+                      className="w-full py-3 rounded-xl bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition-colors disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed"
+                    >
+                      {((poin || 0) * (systemSettings.poin_to_rupiah || 50)) < systemSettings.min_cash_withdrawal ? 'Saldo Belum Mencukupi' : 'Tarik Uang Tunai'}
+                    </button>
+                  </div>
+                )}
+
+                {systemSettings.is_photobooth_active && (
+                  <div className={systemSettings.is_cash_active ? 'pt-2' : ''}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Ticket className="w-5 h-5 text-amber-400" />
+                      <h4 className="font-bold text-white">Akses Photobooth</h4>
+                    </div>
+                    <p className="text-xs text-gray-400 mb-4 leading-relaxed">Tukarkan 50 poin dengan 1 tiket sesi foto gratis.</p>
+
+                    <div className="w-full bg-gray-800 h-2.5 rounded-full mb-3 overflow-hidden">
+                      <div className="bg-amber-400 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${Math.min((poin / 50) * 100, 100)}%` }}></div>
+                    </div>
+
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Progress</span>
+                      <span className="text-xs font-bold text-amber-400">{poin} / 50 Poin</span>
+                    </div>
+
+                    <button
+                      onClick={handleTukarPhotobooth}
+                      disabled={loadingVoucher || poin < 50}
+                      className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-black font-bold text-sm hover:from-amber-300 hover:to-amber-400 shadow-md shadow-amber-500/20 transition-all disabled:from-gray-800 disabled:to-gray-800 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed"
+                    >
+                      {loadingVoucher ? 'Memproses...' : poin < 50 ? 'Poin Belum Cukup' : 'Tukar 50 Poin'}
+                    </button>
+                  </div>
+                )}
+
+                {!systemSettings.is_cash_active && !systemSettings.is_photobooth_active && (
+                  <div className="text-center py-8">
+                    <ShieldCheck className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400 text-sm font-semibold">Sistem penukaran hadiah sedang dibekukan / dalam perbaikan.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 p-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <Crown className="w-5 h-5 text-amber-500" />
+                  <h4 className="font-bold text-sm">Top 5 Hunters</h4>
                 </div>
-              )}
+
+                {loadingLeader ? (
+                  <p className="text-xs text-center text-gray-400">Memuat radar...</p>
+                ) : leaderboard.length === 0 ? (
+                  <p className="text-xs text-center text-gray-400">Belum ada data.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {leaderboard.map((hunter, index) => (
+                      <div key={index} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 hover:border-amber-200 transition-colors">
+                        <div className="flex items-center gap-2.5 overflow-hidden">
+                          <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold shrink-0 ${index === 0 ? 'bg-amber-100 text-amber-600 border border-amber-200' : index === 1 ? 'bg-gray-200 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-white text-gray-500 border border-gray-200'}`}>
+                            {index + 1}
+                          </span>
+                          <span className="text-xs font-bold text-gray-700 truncate max-w-[100px]" title={hunter.nama_lengkap || 'Anonymous'}>
+                            {hunter.nama_lengkap || 'Anon'}
+                          </span>
+                        </div>
+                        <span className="text-xs font-black text-amber-500 shrink-0">{hunter.total_poin || 0} Pts</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Logout Khusus Mobile */}
+              <button 
+                onClick={handleLogout} 
+                className="md:hidden w-full flex items-center justify-center gap-3 mt-8 p-4 bg-red-50 text-red-600 font-bold rounded-xl"
+              >
+                <LogOut className="w-5 h-5" /> Keluar Akun
+              </button>
+
             </div>
           </div>
         </div>
 
-        <div className="flex-1">
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold mb-2">
+        {/* Main Content Area */}
+        <div className="flex-1 w-full min-w-0">
+          <div className="mb-6 md:mb-8 mt-2 md:mt-0">
+            <h2 className="text-2xl md:text-3xl font-bold mb-2">
               {menuAktif === 'beranda' ? `Halo, ${namaHunter}! 👋` : 'Riwayat Kuesioner 📜'}
             </h2>
-            <p className="text-gray-500">
+            <p className="text-sm md:text-base text-gray-500">
               {menuAktif === 'beranda'
                 ? `Ada ${campaigns.length} kuesioner rilis menunggu untuk diisi.`
                 : `Kamu sudah berhasil mengumpulkan koin dari ${riwayat.length} kuesioner.`}
@@ -569,26 +617,26 @@ export default function BerandaView({ setCurrentView, user }) {
 
           {menuAktif === 'beranda' ? (
             <>
-              <div className="relative mb-8">
+              <div className="relative mb-6 md:mb-8">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="text" placeholder="Cari topik kuesioner..." className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white shadow-sm outline-none" />
+                <input type="text" placeholder="Cari topik kuesioner..." className="w-full pl-12 pr-4 py-3 md:py-4 rounded-xl md:rounded-2xl bg-white shadow-sm border border-gray-100 outline-none focus:border-amber-300" />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                 {campaigns.length === 0 ? (
                   <p className="text-gray-400 italic">Kamu sudah menyelesaikan semua kuesioner yang tersedia!</p>
                 ) : (
                   campaigns.map((item) => {
                     const sisaKuota = item.target_responden - (item.terisi || 0);
                     return (
-                      <div key={item.id} className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-gray-100 flex flex-col hover:border-amber-200 transition-colors">
+                      <div key={item.id} className="bg-white rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 shadow-sm border border-gray-100 flex flex-col hover:border-amber-200 transition-colors">
                         <div className="flex flex-col gap-3 mb-4">
                           <div className="flex justify-between items-start">
                             <span className={`text-[10px] font-bold px-2.5 py-1.5 rounded-md flex items-center gap-1 w-fit ${item.target_universitas && item.target_universitas !== 'Semua Kampus' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-gray-50 text-gray-500 border border-gray-200'}`}>
-                              <Building2 size={12} /> {item.target_universitas || 'Semua Kampus'}
+                              <Building2 size={12} className="shrink-0" /> <span className="truncate max-w-[120px]">{item.target_universitas || 'Semua Kampus'}</span>
                             </span>
 
-                            <span className="text-sm font-black text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200 shadow-sm">
+                            <span className="text-xs md:text-sm font-black text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200 shadow-sm shrink-0 ml-2">
                               +{item.reward_poin} Pts
                             </span>
                           </div>
@@ -596,7 +644,7 @@ export default function BerandaView({ setCurrentView, user }) {
                             Sisa Kuota: {sisaKuota}
                           </span>
                         </div>
-                        <h3 className="text-xl font-bold mb-6 leading-snug">{item.judul}</h3>
+                        <h3 className="text-lg md:text-xl font-bold mb-6 leading-snug">{item.judul}</h3>
 
                         <div className="mt-auto space-y-3">
                           {formAktif !== item.id ? (
@@ -621,7 +669,7 @@ export default function BerandaView({ setCurrentView, user }) {
                                 />
                               </div>
                               <button onClick={() => handleKlaimPoin(item)} disabled={loadingKlaim || !inputKodeValidasi} className="w-full bg-amber-500 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition-colors flex justify-center items-center gap-2 shadow-md shadow-amber-200 disabled:opacity-50">
-                                {loadingKlaim ? 'Memproses...' : <><Check className="w-5 h-5 shrink-0" /> Klaim {item.reward_poin} Poin Saya</>}
+                                {loadingKlaim ? 'Memproses...' : <><Check className="w-4 h-4 md:w-5 md:h-5 shrink-0" /> Klaim {item.reward_poin} Poin Saya</>}
                               </button>
                             </div>
                           )}
@@ -633,34 +681,34 @@ export default function BerandaView({ setCurrentView, user }) {
               </div>
             </>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
               {riwayat.length === 0 ? (
                 <p className="text-gray-400 italic">Belum ada riwayat kuesioner yang diselesaikan.</p>
               ) : (
                 riwayat.map((item, index) => (
-                  <div key={index} className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-gray-100 flex flex-col">
+                  <div key={index} className="bg-white rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 shadow-sm border border-gray-100 flex flex-col">
                     <div className="flex justify-between items-start mb-4">
                       {item.status === 'pending' ? (
-                        <span className="text-xs font-bold px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full flex items-center gap-1 shadow-sm">
-                          <Clock size={12} /> Menunggu ACC Klien
+                        <span className="text-[10px] md:text-xs font-bold px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full flex items-center gap-1 shadow-sm">
+                          <Clock size={12} className="shrink-0" /> Menunggu ACC
                         </span>
                       ) : item.status === 'rejected' ? (
-                        <span className="text-xs font-bold px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full flex items-center gap-1 shadow-sm">
-                          <XCircle size={12} /> Bukti Ditolak
+                        <span className="text-[10px] md:text-xs font-bold px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full flex items-center gap-1 shadow-sm">
+                          <XCircle size={12} className="shrink-0" /> Ditolak
                         </span>
                       ) : (
-                        <span className="text-xs font-bold px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full flex items-center gap-1 shadow-sm">
-                          <CheckCircle2 size={12} /> Poin Masuk
+                        <span className="text-[10px] md:text-xs font-bold px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full flex items-center gap-1 shadow-sm">
+                          <CheckCircle2 size={12} className="shrink-0" /> Poin Masuk
                         </span>
                       )}
 
-                      <span className={`text-sm font-bold ${item.status === 'rejected' ? 'text-gray-300 line-through' : 'text-amber-500'}`}>
+                      <span className={`text-sm font-bold ml-2 shrink-0 ${item.status === 'rejected' ? 'text-gray-300 line-through' : 'text-amber-500'}`}>
                         +{item.campaigns?.reward_poin} Poin
                       </span>
                     </div>
-                    <h3 className="text-xl font-bold mb-6 text-gray-800 leading-snug">{item.campaigns?.judul}</h3>
-                    <div className="mt-auto pt-4 border-t border-gray-50 flex items-center gap-2 text-sm text-gray-400 font-medium">
-                      <Calendar size={16} /> Diselesaikan pada {formatTanggal(item.created_at)}
+                    <h3 className="text-lg md:text-xl font-bold mb-6 text-gray-800 leading-snug">{item.campaigns?.judul}</h3>
+                    <div className="mt-auto pt-4 border-t border-gray-50 flex items-center gap-2 text-xs md:text-sm text-gray-400 font-medium">
+                      <Calendar size={14} className="shrink-0" /> Selesai: {formatTanggal(item.created_at)}
                     </div>
                   </div>
                 ))
@@ -670,26 +718,27 @@ export default function BerandaView({ setCurrentView, user }) {
         </div>
       </main>
 
+      {/* Modal Profile */}
       {showProfileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2rem] w-full max-w-md p-8 relative flex flex-col shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl md:rounded-[2rem] w-full max-w-md p-6 md:p-8 relative flex flex-col shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
             <button onClick={() => setShowProfileModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black bg-gray-100 p-2 rounded-full transition-colors">
               <X size={18} />
             </button>
 
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
-                <ShieldCheck size={24} />
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
+                <ShieldCheck size={20} className="md:w-6 md:h-6" />
               </div>
               <div>
-                <h2 className="text-xl font-bold">Lengkapi Profil</h2>
-                <p className="text-xs text-gray-500">Data ini dibutuhkan untuk keamanan dan verifikasi tiket.</p>
+                <h2 className="text-lg md:text-xl font-bold">Lengkapi Profil</h2>
+                <p className="text-[10px] md:text-xs text-gray-500">Data ini dibutuhkan untuk keamanan.</p>
               </div>
             </div>
 
             <form onSubmit={handleSimpanProfil} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">NIM / Nomor Induk Siswa <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">NIM / NIS <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <User className="absolute top-3 left-3 text-gray-400" size={16} />
                   <input type="text" value={formProfil.nim} onChange={(e) => setFormProfil({ ...formProfil, nim: e.target.value })} className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-amber-500 bg-gray-50 focus:bg-white" placeholder="Contoh: 21010920..." required />
@@ -738,53 +787,54 @@ export default function BerandaView({ setCurrentView, user }) {
         </div>
       )}
 
+      {/* Modal Voucher Photobooth */}
       {showModalVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2rem] w-full max-w-sm p-8 relative flex flex-col items-center text-center shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl md:rounded-[2rem] w-full max-w-sm p-6 md:p-8 relative flex flex-col items-center text-center shadow-2xl animate-in zoom-in-95 duration-300">
             <button onClick={() => setShowModalVoucher(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black bg-gray-100 p-2 rounded-full transition-colors">
               <X size={18} />
             </button>
 
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 shadow-inner">
-              <CheckCircle2 size={32} />
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4 md:mb-6 shadow-inner">
+              <CheckCircle2 size={24} className="md:w-8 md:h-8" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Penukaran Berhasil!</h2>
-            <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+            <h2 className="text-xl md:text-2xl font-bold mb-2">Penukaran Berhasil!</h2>
+            <p className="text-gray-500 text-xs md:text-sm mb-6 md:mb-8 leading-relaxed">
               Ini adalah Tiket Digital kamu. Tunjukkan QR Code di bawah ini kepada petugas kasir Photobooth.
             </p>
 
-            <div className="bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-300 mb-6 w-full flex flex-col items-center justify-center relative">
+            <div className="bg-gray-50 p-4 md:p-6 rounded-2xl border-2 border-dashed border-gray-300 mb-6 w-full flex flex-col items-center justify-center relative">
               <div className="absolute -left-3 top-1/2 w-6 h-6 bg-white rounded-full"></div>
               <div className="absolute -right-3 top-1/2 w-6 h-6 bg-white rounded-full"></div>
 
               <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 mb-4">
-                <QRCodeSVG value={kodeVoucherAktif} size={160} level="H" />
+                <QRCodeSVG value={kodeVoucherAktif} size={140} level="H" />
               </div>
-              <p className="font-mono font-bold text-2xl tracking-widest text-[#111111]">{kodeVoucherAktif}</p>
+              <p className="font-mono font-bold text-xl md:text-2xl tracking-widest text-[#111111]">{kodeVoucherAktif}</p>
             </div>
 
-            <button onClick={() => setShowModalVoucher(false)} className="w-full py-4 bg-[#111111] text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg shadow-black/20">
+            <button onClick={() => setShowModalVoucher(false)} className="w-full py-3.5 bg-[#111111] text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg shadow-black/20">
               Selesai & Tutup
             </button>
           </div>
         </div>
       )}
 
+      {/* Modal Tarik Tunai */}
       {showModalCash && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[2rem] w-full max-w-md p-8 relative flex flex-col shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl md:rounded-[2rem] w-full max-w-md p-6 md:p-8 relative flex flex-col shadow-2xl animate-in zoom-in-95 duration-300">
             <button onClick={() => setShowModalCash(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black bg-gray-100 p-2 rounded-full transition-colors">
               <X size={18} />
             </button>
 
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center shrink-0">
-                <span className="text-2xl">💸</span>
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center shrink-0">
+                <span className="text-xl md:text-2xl">💸</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold">Cairkan Uang Jajan</h2>
-                {/* ✅ UI MODAL JUGA DIUBAH PAKE KONVERSI DINAMIS */}
-                <p className="text-xs text-gray-500">Saldo saat ini: <strong className="text-green-600">Rp {(poin * (systemSettings.poin_to_rupiah || 50)).toLocaleString('id-ID')}</strong></p>
+                <h2 className="text-lg md:text-xl font-bold">Cairkan Uang Jajan</h2>
+                <p className="text-[10px] md:text-xs text-gray-500">Saldo saat ini: <strong className="text-green-600">Rp {(poin * (systemSettings.poin_to_rupiah || 50)).toLocaleString('id-ID')}</strong></p>
               </div>
             </div>
 
